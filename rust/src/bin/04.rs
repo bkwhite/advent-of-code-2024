@@ -2,69 +2,67 @@ use std::collections::HashMap;
 use std::slice::Iter;
 use std::usize;
 
-use aho_corasick::AhoCorasick;
-
 advent_of_code::solution!(4);
-
-fn get_char_at_point(point: (usize, usize), horizontals: &Vec<String>) -> Option<&str> {
-    match horizontals.get(point.1) {
-        Some(line) => line.get(point.0..point.0 + 1),
-        None => None,
-    }
-}
 
 fn check_neighbors(
     point: &Point,
-    points_map: &HashMap<String, char>,
-    horizontal_limit: usize,
-    vertical_limit: usize,
+    path: &mut Vec<Point>,
+    found_count: &mut usize,
     target: &str,
     char_index: usize,
-    path: &mut Vec<Point>,
-) -> bool {
-    if let Some(target_char) = target.get(char_index..char_index + 1) {
-        let mut results = point.check_neighbors_for(
-            target_char.chars().next().unwrap(),
-            char_index,
-            points_map,
-            horizontal_limit,
-            vertical_limit,
-        );
+    last_direction: Option<Direction>,
+    points_map: &HashMap<String, char>,
+    limit: usize,
+) {
+    if let Some(target_char) = target.chars().nth(char_index) {
+        let results = point.check_neighbors_for(target_char, points_map, limit);
 
         for result in results.iter() {
-            if char_index == target.len() - 1 {
-                println!("target_c: {}, {:?}", target_char, path);
-                return true;
-            } else {
-                //println!("p: {:?}, tc: {}", result.1, target_char);
-                path.push(point.clone());
+            if target_char == result.character && char_index == 0 {
+                let mut new_path = path.clone();
+                new_path.push(result.point.clone());
 
-                return check_neighbors(
+                check_neighbors(
                     &result.point,
-                    points_map,
-                    horizontal_limit,
-                    vertical_limit,
+                    &mut new_path,
+                    found_count,
                     target,
                     char_index + 1,
-                    path,
+                    Some(result.direction.clone()),
+                    points_map,
+                    limit,
                 );
+            }
+
+            if let Some(last_direction) = last_direction {
+                if last_direction == result.direction {
+                    path.push(result.point.clone());
+
+                    if char_index == target.len() - 1 {
+                        *found_count += 1;
+                        return;
+                    }
+
+                    return check_neighbors(
+                        &result.point,
+                        path,
+                        found_count,
+                        target,
+                        char_index + 1,
+                        Some(result.direction.clone()),
+                        points_map,
+                        limit,
+                    );
+                }
             }
         }
     }
-
-    return false;
 }
 
 pub fn part_one(input: &str) -> Option<u32> {
     let mut points_map: HashMap<String, char> = HashMap::new();
-
-    let xmas_ac = AhoCorasick::new(&["XMAS", "SAMX"]).unwrap();
-
     let mut occurrences: u32 = 0;
-    let mut hor_occ_count = 0;
-    let mut ver_occ_count = 0;
-    let mut horizontal_lines: Vec<String> = [].to_vec();
-    let mut vertical_lines: Vec<String> = [].to_vec();
+    let limit = input.lines().count();
 
     for (line_index, line) in input.lines().enumerate() {
         for (char_index, c) in line.chars().enumerate() {
@@ -72,41 +70,33 @@ pub fn part_one(input: &str) -> Option<u32> {
         }
     }
 
-    let horizontal_line_count = horizontal_lines.len();
-    let vertical_line_count = vertical_lines.len();
-
-    for line in vertical_lines.clone().into_iter() {
-        // count verticals
-        occurrences += xmas_ac.find_overlapping_iter(line.as_str()).count() as u32;
-        ver_occ_count += xmas_ac.find_overlapping_iter(line.as_str()).count() as u32;
-        println!("{}", line);
-    }
-
-    for x in 0..horizontal_line_count {
-        for y in 0..vertical_line_count {
-            //println!("point: {:?}", (x, y));
-
-            let mut path = vec![];
+    for x in 0..limit {
+        for y in 0..limit {
             let point = Point { x, y };
 
-            let result = check_neighbors(
+            if !point.check_self('X', &points_map) {
+                continue;
+            }
+
+            let mut path = vec![];
+            let mut found_count = 0;
+
+            path.push(point.clone());
+
+            check_neighbors(
                 &point,
-                &points_map,
-                horizontal_line_count,
-                vertical_line_count,
-                "XMAS",
-                0,
                 &mut path,
+                &mut found_count,
+                "MAS",
+                0,
+                None,
+                &points_map,
+                limit,
             );
 
-            if result {
-                occurrences += 1
-            }
+            occurrences += found_count as u32;
         }
     }
-
-    println!("hor c: {}", hor_occ_count);
-    println!("ver c: {}", vertical_line_count);
 
     Some(occurrences)
 }
@@ -132,7 +122,7 @@ mod tests {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 enum Direction {
     Up,
     Down,
@@ -166,10 +156,11 @@ struct Point {
     pub y: usize,
 }
 
+#[derive(Debug)]
 struct Result {
     point: Point,
     direction: Direction,
-    char_index: usize,
+    character: char,
 }
 
 #[allow(dead_code)]
@@ -185,15 +176,10 @@ impl Point {
         format!("{},{}", self.x, self.y)
     }
 
-    pub fn get_neighbor(
-        &self,
-        direction: &Direction,
-        horizontal_limit: usize,
-        vertical_limit: usize,
-    ) -> Option<Point> {
+    pub fn get_neighbor(&self, direction: &Direction, limit: usize) -> Option<Point> {
         match direction {
             Direction::Up => {
-                if self.y - 1 < 0 {
+                if self.y == 0 {
                     return None;
                 }
 
@@ -203,7 +189,7 @@ impl Point {
                 })
             }
             Direction::Down => {
-                if self.y + 1 < vertical_limit {
+                if self.y + 1 > limit {
                     return None;
                 }
 
@@ -213,7 +199,7 @@ impl Point {
                 })
             }
             Direction::Left => {
-                if self.x - 1 < 0 {
+                if self.x == 0 {
                     return None;
                 }
 
@@ -223,7 +209,7 @@ impl Point {
                 })
             }
             Direction::Right => {
-                if self.x + 1 < horizontal_limit {
+                if self.x + 1 > limit {
                     return None;
                 }
 
@@ -233,7 +219,7 @@ impl Point {
                 })
             }
             Direction::UpLeft => {
-                if self.x - 1 < 0 || self.y - 1 < 0 {
+                if self.x == 0 || self.y == 0 {
                     return None;
                 }
 
@@ -243,7 +229,7 @@ impl Point {
                 })
             }
             Direction::UpRight => {
-                if self.x + 1 > horizontal_limit || self.y - 1 < 0 {
+                if self.x + 1 > limit || self.y == 0 {
                     return None;
                 }
 
@@ -253,7 +239,7 @@ impl Point {
                 })
             }
             Direction::DownLeft => {
-                if self.x - 1 < 0 || self.y + 1 > vertical_limit {
+                if self.x == 0 || self.y + 1 > limit {
                     return None;
                 }
 
@@ -263,7 +249,7 @@ impl Point {
                 })
             }
             Direction::DownRight => {
-                if self.x + 1 > horizontal_limit || self.y + 1 > vertical_limit {
+                if self.x + 1 > limit || self.y + 1 > limit {
                     return None;
                 }
 
@@ -272,29 +258,35 @@ impl Point {
                     y: self.y + 1,
                 })
             }
-            _ => panic!("Invalid direction"),
         }
+    }
+
+    pub fn check_self(&self, target: char, point_map: &HashMap<String, char>) -> bool {
+        if let Some(value) = point_map.get(&self.to_str()) {
+            if target == *value {
+                return true;
+            }
+        }
+
+        false
     }
 
     pub fn check_neighbors_for(
         &self,
         target: char,
-        char_index: usize,
         point_map: &HashMap<String, char>,
-        horizontal_limit: usize,
-        vertical_limit: usize,
+        limit: usize,
     ) -> Vec<Result> {
         let mut results: Vec<Result> = vec![];
 
         for direction in Direction::iterator() {
-            println!("{:?}", direction);
-            if let Some(neighbor) = self.get_neighbor(direction, horizontal_limit, vertical_limit) {
+            if let Some(neighbor) = self.get_neighbor(direction, limit) {
                 if let Some(value) = point_map.get(&neighbor.to_str()) {
                     if target == *value {
                         results.push(Result {
                             point: neighbor,
                             direction: direction.clone(),
-                            char_index,
+                            character: *value,
                         });
                     }
                 }
