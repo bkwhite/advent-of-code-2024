@@ -44,17 +44,18 @@ def set_char_at(grid: list[list[str]], pos: tuple[int, int], char: str):
     grid[x][y] = char
 
 
-def get_guard_position(grid: list[list[str]]):
+def get_guard_position(
+    grid: list[list[str]],
+) -> tuple[tuple[int, int], tuple[int, int], str]:
     for y, row in enumerate(grid):
         for gc in GUARD_CHARS:
             if gc in row:
-                return (row.index(gc), y)
+                pos = (row.index(gc), y)
+                gc = get_char_at(grid, pos)
+                return (pos, get_guard_direction(gc), gc)
 
 
-def get_guard_direction(grid: list[list[str]]):
-    pos = get_guard_position(grid)
-    gc = get_char_at(grid, pos)
-
+def get_guard_direction(gc: str):
     match gc:
         case "^":
             return (0, -1)
@@ -66,14 +67,8 @@ def get_guard_direction(grid: list[list[str]]):
             return (0, 1)
 
 
-def get_guard_char(grid: list[list[str]]):
-    pos = get_guard_position(grid)
-    if pos:
-        return get_char_at(grid, pos)
-
-
 def rotate_guard(grid: list[list[str]], pos: tuple[int, int]):
-    pos = get_guard_position(grid)
+    (pos, _, _) = get_guard_position(grid)
     gc = get_char_at(grid, pos)
     next_gc = get_next_char(GUARD_CHARS, gc)
     set_char_at(grid, pos, next_gc)
@@ -115,14 +110,16 @@ def get_all_positions(grid: list[list[str]], char: str):
 
 
 def walk(grid: list[list[str]]):
-    while get_guard_position(grid):
-        g_pos = get_guard_position(grid)
-        g_dir = get_guard_direction(grid)
+    visited = {}
+
+    (g_pos, g_dir, gc) = get_guard_position(grid)
+
+    while g_pos:
+
         next_pos = add_tuples(g_pos, g_dir)
         next_char = get_next_pos(grid, next_pos)
 
         if next_char and next_char != "#":
-            gc = get_guard_char(grid)
             if g_pos:
                 set_char_at(grid, g_pos, "X")
             set_char_at(grid, next_pos, gc)
@@ -132,6 +129,8 @@ def walk(grid: list[list[str]]):
             set_char_at(grid, g_pos, "X")
             break
 
+        (g_pos, g_dir, gc) = get_guard_position(grid)
+        print(next_pos)
         continue
 
 
@@ -172,7 +171,8 @@ class Solution(StrSplitSolution):
     _year = 2024
     _day = 6
 
-    # @answer(41)
+    @answer(41)
+    # @answer(5269)
     def part_1(self) -> int:
         grid = parse_input(self.input)
         walk(grid)
@@ -181,6 +181,8 @@ class Solution(StrSplitSolution):
 
     # @answer(1234)
     def part_2(self) -> int:
+        pass
+        return
         cycle_count = 0
         base_grid = parse_input(self.input)
         walked_grid = parse_input(self.input)
