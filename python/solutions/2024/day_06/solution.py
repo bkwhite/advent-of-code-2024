@@ -5,6 +5,8 @@
 # I have learned why python doesn't like recursion =
 
 import sys
+import copy
+import concurrent.futures
 
 from ...base import StrSplitSolution, answer
 
@@ -100,13 +102,14 @@ def count_char_in_grid(grid: list[list[str]], char: str):
 
 def get_all_positions(grid: list[list[str]], char: str):
     positions: list[tuple[int, int]] = []
-    
+
     for y, row in enumerate(grid):
-         for x, c in enumerate(row):
+        for x, c in enumerate(row):
             if c == char:
                 positions.append((x, y))
-    
+
     return positions
+
 
 def walk(grid: list[list[str]]):
     while get_guard_position(grid):
@@ -125,7 +128,42 @@ def walk(grid: list[list[str]]):
         else:
             set_char_at(grid, g_pos, "X")
             break
+
         continue
+
+
+def has_cycle(grid: list[list[str]]) -> bool:
+    i = 0
+    hit_obstacle = False
+    while get_guard_position(grid):
+        g_pos = get_guard_position(grid)
+        g_dir = get_guard_direction(grid)
+        next_pos = add_tuples(g_pos, g_dir)
+        next_char = get_next_pos(grid, next_pos)
+
+        if next_char and next_char != "#" and next_char != "O":
+            gc = get_guard_char(grid)
+            if g_pos:
+                set_char_at(grid, g_pos, "X")
+            set_char_at(grid, next_pos, gc)
+        elif next_char == "#" or next_char == "O":
+            rotate_guard(grid, g_pos)
+            if next_char == "O":
+                if hit_obstacle:
+                    # print("cycle detected")
+                    # print_grid_state(grid)
+                    return True
+                else:
+                    hit_obstacle = True
+        else:
+            set_char_at(grid, g_pos, "X")
+            # print("walked off map")
+            return False
+
+        continue
+
+    # print("nothing?")
+
 
 class Solution(StrSplitSolution):
     _year = 2024
@@ -140,14 +178,40 @@ class Solution(StrSplitSolution):
 
     # @answer(1234)
     def part_2(self) -> int:
+        cycle_count = 0
         base_grid = parse_input(self.input)
         walked_grid = parse_input(self.input)
         walk(walked_grid)
-        walked_positions = get_all_positions(walked_grid, "X")
-       
 
+        print("build init walk graph")
 
-        pass
+        guard_position = get_guard_position(base_grid)
+        walked_pos = get_all_positions(walked_grid, "X")
+
+        print("pos to process:", len(walked_pos))
+
+        def process_position(pos):
+
+            if pos == guard_position:
+                return 0
+
+            fresh_grid = copy.deepcopy(base_grid)
+
+            set_char_at(fresh_grid, pos, "O")
+
+            if has_cycle(fresh_grid):
+                print("found cycle!")
+                return 1
+
+            return 0
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            results = list(executor.map(process_position, walked_pos))
+
+        cycle_count = sum(results)
+
+        print(cycle_count)
+        return cycle_count
 
     # @answer((1234, 4567))
     # def solve(self) -> tuple[int, int]:
