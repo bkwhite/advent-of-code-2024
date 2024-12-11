@@ -46,6 +46,15 @@ def print_grid_state(grid: str, size: int):
     print()
 
 
+def write_grid_state_to_file(grid: str, size: int, filename: str):
+    with open(filename, "w") as file:
+        for i, c in enumerate(grid):
+            if i > 0 and i % size == 0:
+                file.write("\n")
+            file.write(c)
+        file.write("\n")
+
+
 def pos_to_index(size: int, pos: tuple[int, int]) -> int:
     (x, y) = pos
     return y * size + x
@@ -143,11 +152,10 @@ def walk(init_grid: str, size: int):
     return grid
 
 
-def has_cycle(init_grid: str, size: int) -> bool:
-    hit_obstacle = False
+def has_cycle(init_grid: str, size: int, index) -> bool:
     (g_pos, g_dir, gc) = get_guard_position(init_grid, size)
-
     grid = init_grid
+    hit_dict = {}
 
     while g_pos:
         next_pos = add_tuples(g_pos, g_dir)
@@ -159,18 +167,19 @@ def has_cycle(init_grid: str, size: int) -> bool:
 
             grid = set_char_at(grid, size, next_pos, gc)
         elif next_char == "#" or next_char == "O":
+            (x, y) = g_pos
             grid = rotate_guard(grid, size, g_pos)
 
-            if next_char == "O":
-                if hit_obstacle:
-                    return True
-                else:
-                    hit_obstacle = True
+            if "{}-{}-{}".format(x, y, gc) in hit_dict:
+                return True
+            else:
+                hit_dict["{}-{}-{}".format(x, y, gc)] = True
         else:
             grid = set_char_at(grid, size, g_pos, "X")
             return False
 
         (g_pos, g_dir, gc) = get_guard_position(grid, size)
+
         continue
 
 
@@ -178,7 +187,6 @@ class Solution(StrSplitSolution):
     _year = 2024
     _day = 6
 
-    # @answer(41)
     @answer(5269)
     def part_1(self) -> int:
         input = parse_input2(self.input)
@@ -187,44 +195,34 @@ class Solution(StrSplitSolution):
         count = count_char_in_grid(walked, "X")
         return count
 
-    # @answer(1234)
+    @answer(1957)
     def part_2(self) -> int:
-        cycle_count = 0
         input = parse_input2(self.input)
         (grid, size) = input
         walked = walk(grid, size)
-
-        print("build init walk graph")
-
-        (guard_position, g_dir, gc) = get_guard_position(grid, size)
+        (guard_position, _, _) = get_guard_position(grid, size)
         walked_positions = get_all_positions(walked, size, "X")
 
-        def process_position(data):
-            (x, y, index) = data
-            pos = (x, y)
+        def count_cycles():
+            iii = 0
+            cycle_count = 0
+            for position in walked_positions:
+                iii += 1
+                (x, y, index) = position
+                pos = (x, y)
 
-            if pos == guard_position:
-                return 0
+                if pos == guard_position:
+                    continue
 
-            this_grid = grid
-            this_grid = set_char_at(this_grid, size, pos, "O")
+                this_grid = grid
+                this_grid = set_char_at(this_grid, size, pos, "O")
 
-            if has_cycle(this_grid, size):
-                print("found cycle for [", index, "]")
-                return 1
+                if has_cycle(this_grid, size, index):
+                    cycle_count += 1
 
-            print("no cycle for [", index, "]")
-            return 0
+            return cycle_count
 
-        print(len(walked_positions))
-
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = list(executor.map(process_position, walked_positions))
-
-        cycle_count = sum(results)
-
-        print(cycle_count)
-        return cycle_count
+        return count_cycles()
 
     # @answer((1234, 4567))
     # def solve(self) -> tuple[int, int]:
