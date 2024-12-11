@@ -68,14 +68,12 @@ def get_guard_direction(gc: str):
 
 
 def rotate_guard(grid: list[list[str]], pos: tuple[int, int]):
-    (pos, _, _) = get_guard_position(grid)
     gc = get_char_at(grid, pos)
     next_gc = get_next_char(GUARD_CHARS, gc)
     set_char_at(grid, pos, next_gc)
 
 
-def get_next_pos(grid: list[list[str]], pos: tuple[int, int]):
-    size = len(grid)
+def get_next_pos(grid: list[list[str]], size: int, pos: tuple[int, int]):
     (x, y) = pos
 
     if x < 0 or y < 0 or x > (size - 1) or y > (size - 1):
@@ -97,9 +95,7 @@ def count_char_in_grid(grid: list[list[str]], char: str):
 
 def get_all_positions(grid: list[list[str]], char: str):
     positions: list[tuple[int, int, int]] = []
-
     index = 0
-
     for y, row in enumerate(grid):
         for x, c in enumerate(row):
             if c == char:
@@ -111,13 +107,12 @@ def get_all_positions(grid: list[list[str]], char: str):
 
 def walk(grid: list[list[str]]):
     visited = {}
-
+    grid_size = len(grid)
     (g_pos, g_dir, gc) = get_guard_position(grid)
 
     while g_pos:
-
         next_pos = add_tuples(g_pos, g_dir)
-        next_char = get_next_pos(grid, next_pos)
+        next_char = get_next_pos(grid, grid_size, next_pos)
 
         if next_char and next_char != "#":
             if g_pos:
@@ -130,7 +125,6 @@ def walk(grid: list[list[str]]):
             break
 
         (g_pos, g_dir, gc) = get_guard_position(grid)
-        print(next_pos)
         continue
 
 
