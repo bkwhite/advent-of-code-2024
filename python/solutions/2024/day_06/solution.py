@@ -99,28 +99,25 @@ def count_char_in_grid(grid: list[list[str]], char: str):
 
 
 def move(grid: list[list[str]], iteration: int):
-    pos = get_guard_position(grid)
-    direction = get_guard_direction(grid)
+    while get_guard_position(grid):
+        g_pos = get_guard_position(grid)
+        g_dir = get_guard_direction(grid)
+        next_pos = add_tuples(g_pos, g_dir)
+        next_char = get_next_pos(grid, next_pos)
 
-    next_pos = add_tuples(pos, direction)
-    next_char = get_next_pos(grid, next_pos)
-
-    if next_char and next_char != "#":
-        gc = get_guard_char(grid)
-
-        if pos:
-            iteration += 1
-            set_char_at(grid, pos, "X")
-
-        set_char_at(grid, next_pos, gc)
-    elif next_char == "#":
-        rotate_guard(grid, pos)
-    else:
-        print(iteration)
-        set_char_at(grid, pos, "X")
-        return False
-
-    return move(grid, iteration)
+        if next_char and next_char != "#":
+            gc = get_guard_char(grid)
+            if g_pos:
+                iteration += 1
+                set_char_at(grid, g_pos, "X")
+            set_char_at(grid, next_pos, gc)
+        elif next_char == "#":
+            rotate_guard(grid, g_pos)
+        else:
+            print(iteration)
+            set_char_at(grid, g_pos, "X")
+            break
+        continue
 
 
 class Solution(StrSplitSolution):
@@ -130,7 +127,6 @@ class Solution(StrSplitSolution):
     # @answer(41)
     def part_1(self) -> int:
         grid = parse_input(self.input)
-        sys.setrecursionlimit(10000)
         move(grid, 0)
         count = count_char_in_grid(grid, "X")
         return count
