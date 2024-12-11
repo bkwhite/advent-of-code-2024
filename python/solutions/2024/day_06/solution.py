@@ -104,7 +104,6 @@ def get_next_pos(grid: str, size: int, pos: tuple[int, int]):
 
 
 def count_char_in_grid(grid: str, char: str):
-    print(grid)
     return grid.count(char)
 
 
@@ -144,34 +143,35 @@ def walk(init_grid: str, size: int):
     return grid
 
 
-def has_cycle(grid: list[list[str]]) -> bool:
+def has_cycle(init_grid: str, size: int) -> bool:
     hit_obstacle = False
-    grid_size = len(grid)
-    (g_pos, g_dir, gc) = get_guard_position(grid)
+    (g_pos, g_dir, gc) = get_guard_position(init_grid, size)
+
+    grid = init_grid
 
     while g_pos:
         next_pos = add_tuples(g_pos, g_dir)
-        next_char = get_next_pos(grid, grid_size, next_pos)
+        next_char = get_next_pos(grid, size, next_pos)
 
         if next_char and next_char != "#" and next_char != "O":
             if g_pos:
-                set_char_at(grid, g_pos, "X")
-            set_char_at(grid, next_pos, gc)
+                grid = set_char_at(grid, size, g_pos, "X")
+
+            grid = set_char_at(grid, size, next_pos, gc)
         elif next_char == "#" or next_char == "O":
-            rotate_guard(grid, g_pos)
+            grid = rotate_guard(grid, size, g_pos)
+
             if next_char == "O":
                 if hit_obstacle:
                     return True
                 else:
                     hit_obstacle = True
         else:
-            set_char_at(grid, g_pos, "X")
+            grid = set_char_at(grid, size, g_pos, "X")
             return False
 
-        (g_pos, g_dir, gc) = get_guard_position(grid)
+        (g_pos, g_dir, gc) = get_guard_position(grid, size)
         continue
-
-    # print("nothing?")
 
 
 class Solution(StrSplitSolution):
@@ -196,12 +196,8 @@ class Solution(StrSplitSolution):
 
         print("build init walk graph")
 
-        (g_pos, g_dir, gc) = get_guard_position(grid, size)
-
-        guard_position = get_guard_position(base_grid)
-        walked_pos = get_all_positions(walked_grid, "X")
-
-        print("pos to process:", len(walked_pos))
+        (guard_position, g_dir, gc) = get_guard_position(grid, size)
+        walked_positions = get_all_positions(walked, size, "X")
 
         def process_position(data):
             (x, y, index) = data
@@ -210,19 +206,20 @@ class Solution(StrSplitSolution):
             if pos == guard_position:
                 return 0
 
-            fresh_grid = copy.deepcopy(base_grid)
+            this_grid = grid
+            this_grid = set_char_at(this_grid, size, pos, "O")
 
-            set_char_at(fresh_grid, pos, "O")
-
-            if has_cycle(fresh_grid):
+            if has_cycle(this_grid, size):
                 print("found cycle for [", index, "]")
                 return 1
 
             print("no cycle for [", index, "]")
             return 0
 
+        print(len(walked_positions))
+
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            results = list(executor.map(process_position, walked_pos))
+            results = list(executor.map(process_position, walked_positions))
 
         cycle_count = sum(results)
 
