@@ -98,7 +98,17 @@ def count_char_in_grid(grid: list[list[str]], char: str):
     return count
 
 
-def move(grid: list[list[str]], iteration: int):
+def get_all_positions(grid: list[list[str]], char: str):
+    positions: list[tuple[int, int]] = []
+    
+    for y, row in enumerate(grid):
+         for x, c in enumerate(row):
+            if c == char:
+                positions.append((x, y))
+    
+    return positions
+
+def walk(grid: list[list[str]]):
     while get_guard_position(grid):
         g_pos = get_guard_position(grid)
         g_dir = get_guard_direction(grid)
@@ -108,17 +118,14 @@ def move(grid: list[list[str]], iteration: int):
         if next_char and next_char != "#":
             gc = get_guard_char(grid)
             if g_pos:
-                iteration += 1
                 set_char_at(grid, g_pos, "X")
             set_char_at(grid, next_pos, gc)
         elif next_char == "#":
             rotate_guard(grid, g_pos)
         else:
-            print(iteration)
             set_char_at(grid, g_pos, "X")
             break
         continue
-
 
 class Solution(StrSplitSolution):
     _year = 2024
@@ -127,13 +134,19 @@ class Solution(StrSplitSolution):
     # @answer(41)
     def part_1(self) -> int:
         grid = parse_input(self.input)
-        move(grid, 0)
+        walk(grid)
         count = count_char_in_grid(grid, "X")
         return count
 
     # @answer(1234)
     def part_2(self) -> int:
-        grid = parse_input(self.input)
+        base_grid = parse_input(self.input)
+        walked_grid = parse_input(self.input)
+        walk(walked_grid)
+        walked_positions = get_all_positions(walked_grid, "X")
+       
+
+
         pass
 
     # @answer((1234, 4567))
