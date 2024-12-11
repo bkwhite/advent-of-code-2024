@@ -10,7 +10,7 @@ import concurrent.futures
 
 from ...base import StrSplitSolution, answer
 
-from ...utils.example import add_tuples, get_next_char
+from ...utils.example import add_tuples, get_next_char, set_char_at_index
 
 GUARD_CHARS = ["^", ">", "V", "<"]
 
@@ -18,6 +18,7 @@ GUARD_CHARS = ["^", ">", "V", "<"]
 def parse_input(input: list[str]) -> tuple[list[list[int]], list[str]]:
     width = len(input[0])
     height = len(input)
+
     grid = [[0 for _ in range(width)] for _ in range(height)]
 
     for y_index, line in enumerate(input):
@@ -27,32 +28,52 @@ def parse_input(input: list[str]) -> tuple[list[list[int]], list[str]]:
     return grid
 
 
-def print_grid_state(grid: list[list[str]]):
+def parse_input2(input: list[str]) -> tuple[str, int]:
+    grid = ""
+    size = len(input[0])
+
+    for line in input:
+        grid = grid + line
+
+    return (grid, size)
+
+
+def print_grid_state(grid: str, size: int):
+    for i, c in enumerate(grid):
+        if i > 0 and i % size == 0:
+            print()
+        print(c, end="")
     print()
-    for row in grid:
-        print("".join(str(x) for x in row))
-    print()
 
 
-def get_char_at(grid: list[list[str]], pos: tuple[int, int]):
-    (y, x) = pos
-    return grid[x][y]
+def pos_to_index(size: int, pos: tuple[int, int]) -> int:
+    (x, y) = pos
+    return y * size + x
 
 
-def set_char_at(grid: list[list[str]], pos: tuple[int, int], char: str):
-    (y, x) = pos
-    grid[x][y] = char
+def index_to_pos(size: int, index: int) -> tuple[int, int]:
+    x = index % size
+    y = index // size
+    return (x, y)
+
+
+def get_char_at(grid: str, size: int, pos: tuple[int, int]) -> str:
+    return grid[pos_to_index(size, pos)]
+
+
+def set_char_at(grid: str, size: int, pos: tuple[int, int], char: str):
+    (x, y) = pos
+    return set_char_at_index(grid, y * size + x, char)
 
 
 def get_guard_position(
-    grid: list[list[str]],
+    grid: str,
+    size: int,
 ) -> tuple[tuple[int, int], tuple[int, int], str]:
-    for y, row in enumerate(grid):
-        for gc in GUARD_CHARS:
-            if gc in row:
-                pos = (row.index(gc), y)
-                gc = get_char_at(grid, pos)
-                return (pos, get_guard_direction(gc), gc)
+    for gc in GUARD_CHARS:
+        if gc in grid:
+            pos = index_to_pos(size, grid.index(gc))
+            return (pos, get_guard_direction(gc), gc)
 
 
 def get_guard_direction(gc: str):
@@ -67,46 +88,64 @@ def get_guard_direction(gc: str):
             return (0, 1)
 
 
-def rotate_guard(grid: list[list[str]], pos: tuple[int, int]):
-    gc = get_char_at(grid, pos)
+def rotate_guard(grid: str, size: int, pos: tuple[int, int]):
+    gc = get_char_at(grid, size, pos)
     next_gc = get_next_char(GUARD_CHARS, gc)
-    set_char_at(grid, pos, next_gc)
+    return set_char_at(grid, size, pos, next_gc)
 
 
-def get_next_pos(grid: list[list[str]], size: int, pos: tuple[int, int]):
+def get_next_pos(grid: str, size: int, pos: tuple[int, int]):
     (x, y) = pos
 
     if x < 0 or y < 0 or x > (size - 1) or y > (size - 1):
         return None
 
-    return get_char_at(grid, pos)
+    return get_char_at(grid, size, pos)
 
 
-def count_char_in_grid(grid: list[list[str]], char: str):
-    count = 0
-
-    for y_index, line in enumerate(grid):
-        for x_index, c in enumerate(line):
-            if grid[y_index][x_index] == char:
-                count += 1
-
-    return count
+def count_char_in_grid(grid: str, char: str):
+    print(grid)
+    return grid.count(char)
 
 
-def get_all_positions(grid: list[list[str]], char: str):
+def get_all_positions(grid: str, size: int, char: str):
     positions: list[tuple[int, int, int]] = []
-    index = 0
-    for y, row in enumerate(grid):
-        for x, c in enumerate(row):
-            if c == char:
-                index += 1
-                positions.append((x, y, index))
+
+    for i, c in enumerate(grid):
+        if c == char:
+            (x, y) = index_to_pos(size, i)
+            positions.append((x, y, i))
 
     return positions
 
 
-def walk(grid: list[list[str]]):
-    visited = {}
+def walk(init_grid: str, size: int):
+    (g_pos, g_dir, gc) = get_guard_position(init_grid, size)
+    grid = init_grid
+
+    while g_pos:
+        next_pos = add_tuples(g_pos, g_dir)
+        next_char = get_next_pos(grid, size, next_pos)
+
+        if next_char and next_char != "#":
+            if g_pos:
+                grid = set_char_at(grid, size, g_pos, "X")
+
+            grid = set_char_at(grid, size, next_pos, gc)
+        elif next_char == "#":
+            grid = rotate_guard(grid, size, g_pos)
+        else:
+            grid = set_char_at(grid, size, g_pos, "X")
+            break
+
+        (g_pos, g_dir, gc) = get_guard_position(grid, size)
+        continue
+
+    return grid
+
+
+def has_cycle(grid: list[list[str]]) -> bool:
+    hit_obstacle = False
     grid_size = len(grid)
     (g_pos, g_dir, gc) = get_guard_position(grid)
 
@@ -114,31 +153,7 @@ def walk(grid: list[list[str]]):
         next_pos = add_tuples(g_pos, g_dir)
         next_char = get_next_pos(grid, grid_size, next_pos)
 
-        if next_char and next_char != "#":
-            if g_pos:
-                set_char_at(grid, g_pos, "X")
-            set_char_at(grid, next_pos, gc)
-        elif next_char == "#":
-            rotate_guard(grid, g_pos)
-        else:
-            set_char_at(grid, g_pos, "X")
-            break
-
-        (g_pos, g_dir, gc) = get_guard_position(grid)
-        continue
-
-
-def has_cycle(grid: list[list[str]]) -> bool:
-    i = 0
-    hit_obstacle = False
-    while get_guard_position(grid):
-        g_pos = get_guard_position(grid)
-        g_dir = get_guard_direction(grid)
-        next_pos = add_tuples(g_pos, g_dir)
-        next_char = get_next_pos(grid, next_pos)
-
         if next_char and next_char != "#" and next_char != "O":
-            gc = get_guard_char(grid)
             if g_pos:
                 set_char_at(grid, g_pos, "X")
             set_char_at(grid, next_pos, gc)
@@ -146,16 +161,14 @@ def has_cycle(grid: list[list[str]]) -> bool:
             rotate_guard(grid, g_pos)
             if next_char == "O":
                 if hit_obstacle:
-                    # print("cycle detected")
-                    # print_grid_state(grid)
                     return True
                 else:
                     hit_obstacle = True
         else:
             set_char_at(grid, g_pos, "X")
-            # print("walked off map")
             return False
 
+        (g_pos, g_dir, gc) = get_guard_position(grid)
         continue
 
     # print("nothing?")
@@ -165,24 +178,25 @@ class Solution(StrSplitSolution):
     _year = 2024
     _day = 6
 
-    @answer(41)
-    # @answer(5269)
+    # @answer(41)
+    @answer(5269)
     def part_1(self) -> int:
-        grid = parse_input(self.input)
-        walk(grid)
-        count = count_char_in_grid(grid, "X")
+        input = parse_input2(self.input)
+        (grid, size) = input
+        walked = walk(grid, size)
+        count = count_char_in_grid(walked, "X")
         return count
 
     # @answer(1234)
     def part_2(self) -> int:
-        pass
-        return
         cycle_count = 0
-        base_grid = parse_input(self.input)
-        walked_grid = parse_input(self.input)
-        walk(walked_grid)
+        input = parse_input2(self.input)
+        (grid, size) = input
+        walked = walk(grid, size)
 
         print("build init walk graph")
+
+        (g_pos, g_dir, gc) = get_guard_position(grid, size)
 
         guard_position = get_guard_position(base_grid)
         walked_pos = get_all_positions(walked_grid, "X")

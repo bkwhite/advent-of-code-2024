@@ -15,3 +15,6 @@ def get_next_char(char_list: list[str], current_char: str):
     index = char_list.index(current_char)
     next_index = (index + 1) % len(char_list)
     return char_list[next_index]
+
+def set_char_at_index(string, index, char):
+    return string[:index] + char + string[index + 1:]
