@@ -4,10 +4,6 @@
 
 # I have learned why python doesn't like recursion =
 
-import sys
-import copy
-import concurrent.futures
-
 from ...base import StrSplitSolution, answer
 
 from ...utils.example import add_tuples, get_next_char, set_char_at_index
