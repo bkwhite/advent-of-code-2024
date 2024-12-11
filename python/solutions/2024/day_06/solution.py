@@ -100,13 +100,13 @@ def count_char_in_grid(grid: list[list[str]], char: str):
     return count
 
 
-def get_all_positions(grid: list[list[str]], char: str):
-    positions: list[tuple[int, int]] = []
+def get_all_positions(grid: list[list[str]], char: str, index: int):
+    positions: list[tuple[int, int, int]] = []
 
     for y, row in enumerate(grid):
         for x, c in enumerate(row):
             if c == char:
-                positions.append((x, y))
+                positions.append((x, y, index))
 
     return positions
 
@@ -190,7 +190,9 @@ class Solution(StrSplitSolution):
 
         print("pos to process:", len(walked_pos))
 
-        def process_position(pos):
+        def process_position(data):
+            (x, y, index) = data
+            pos = (x, y)
 
             if pos == guard_position:
                 return 0
@@ -200,9 +202,10 @@ class Solution(StrSplitSolution):
             set_char_at(fresh_grid, pos, "O")
 
             if has_cycle(fresh_grid):
-                print("found cycle!")
+                print("found cycle for [", index, "]")
                 return 1
 
+            print("no cycle for [", index, "]")
             return 0
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
