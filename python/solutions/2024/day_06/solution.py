@@ -100,12 +100,15 @@ def count_char_in_grid(grid: list[list[str]], char: str):
     return count
 
 
-def get_all_positions(grid: list[list[str]], char: str, index: int):
+def get_all_positions(grid: list[list[str]], char: str):
     positions: list[tuple[int, int, int]] = []
+
+    index = 0
 
     for y, row in enumerate(grid):
         for x, c in enumerate(row):
             if c == char:
+                index += 1
                 positions.append((x, y, index))
 
     return positions
